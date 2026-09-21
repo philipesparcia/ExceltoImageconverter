@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel to Image - Results Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420;
+    --panel:#161d2e;
+    --panel2:#1c2438;
+    --border:#2a3450;
+    --accent:#e6b800;
+    --accent2:#ff4d4d;
+    --text:#eef1f8;
+    --muted:#8c96b3;
+    --green:#2ecc71;
+  }
+  *{box-sizing:border-box;}
+  html{ overflow-x:hidden; }
+  body{
+    margin:0;
+    font-family:'Segoe UI',Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:20px;
+    overflow-x:hidden;
+  }
+  h1{
+    font-size:20px;
+    margin:0 0 4px;
+  }
+  p.sub{
+    color:var(--muted);
+    margin:0 0 20px;
+    font-size:13px;
+  }
+  .layout{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px;
+    min-width:0;
+  }
+  .col-left{
+    flex:1 1 360px;
+    min-width:320px;
+  }
+  .col-right{
+    flex:2 1 500px;
+    min-width:0;
+    width:100%;
+  }
+
+  @media (max-width: 720px){
+    body{ padding:12px; }
+    .layout{ flex-direction:column; gap:14px; }
+    .col-left, .col-right{ flex:1 1 auto; min-width:0; width:100%; }
+    .panel{ padding:12px; }
+  }
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin:10px 0 4px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+  textarea{
+    width:100%;
+    height:340px;
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+    font-family:Consolas,monospace;
+    font-size:13px;
+    resize:vertical;
+  }
+  input[type=text]{
+    width:100%;
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 10px;
+    font-size:13px;
+  }
+  .row2{display:flex;gap:10px;}
+  .row2 > div{flex:1;}
+  select{
+    width:100%;
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 10px;
+    font-size:13px;
+  }
+  button{
+    cursor:pointer;
+    border:none;
+    border-radius:8px;
+    padding:11px 16px;
+    font-size:14px;
+    font-weight:600;
+    margin-top:14px;
+  }
+  .btn-primary{
+    background:var(--accent);
+    color:#1a1a1a;
+    width:100%;
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-secondary{
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--border);
+    width:100%;
+  }
+  .btn-secondary:hover{border-color:var(--accent);}
+  .hint{
+    font-size:11.5px;
+    color:var(--muted);
+    margin-top:6px;
+    line-height:1.5;
+  }
+  .status{
+    font-size:12px;
+    margin-top:8px;
+    min-height:16px;
+  }
+  .status.ok{color:var(--green);}
+  .status.err{color:var(--accent2);}
+
+  /* ===== Export canvas ===== */
+  #exportWrap{
+    overflow-x:auto;
+    overflow-y:hidden;
+    max-width:100%;
+    -webkit-overflow-scrolling:touch;
+    border-radius:14px;
+  }
+  #exportCard{
+    background:#ffffff;
+    color:#111;
+    width:640px;
+    min-width:640px;
+    border-radius:14px;
+    overflow:hidden;
+    font-family:'Segoe UI',Arial,sans-serif;
+  }
+  .scroll-hint{
+    display:none;
+    font-size:11px;
+    color:var(--muted);
+    margin:0 0 8px;
+    text-align:center;
+  }
+  @media (max-width: 720px){
+    .scroll-hint{ display:block; }
+  }
+  .card-header{
+    background:linear-gradient(135deg,#1a2138,#2c3660);
+    color:#fff;
+    padding:18px 22px;
+    text-align:center;
+  }
+  .card-header .title{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:.03em;
+    margin:0;
+  }
+  .card-header .subtitle{
+    font-size:12px;
+    color:#c8cee0;
+    margin:4px 0 0;
+  }
+  table.result-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:15px;
+  }
+  table.result-table thead th{
+    background:#1a2138;
+    color:#fff;
+    padding:9px 6px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  table.result-table td{
+    padding:9px 6px;
+    text-align:center;
+    border-bottom:1px solid #eceff5;
+  }
+  table.result-table tr:nth-child(even) td{
+    background:#f7f8fc;
+  }
+  table.result-table td.num{
+    font-weight:800;
+    color:#000000;
+  }
+  table.result-table td.l2{
+    color:#08602c;
+    font-weight:700;
+  }
+  table.result-table td.s3{
+    color:#8a5c07;
+    font-weight:700;
+  }
+  table.result-table td.d4{
+    color:#742a94;
+    font-weight:700;
+  }
+  table.result-table td.labay{
+    color:#a3281a;
+    font-weight:700;
+  }
+  table.result-table td.hits{
+    color:#0d4fa3;
+    font-weight:700;
+  }
+  table.result-table td.default{
+    color:#1a2138;
+    font-weight:700;
+  }
+  td.empty{
+    color:#c3c7d4;
+  }
+  tr.total-row td{
+    background:#1a2138 !important;
+    color:#fff;
+    font-weight:700;
+    border-top:2px solid #1a2138;
+  }
+  tr.total-row td.label{
+    text-align:right;
+    padding-right:10px;
+  }
+  .card-footer{
+    padding:10px 22px 16px;
+    text-align:center;
+    font-size:10.5px;
+    color:#9aa1b5;
+    border-top:1px solid #eceff5;
+  }
+</style>
+</head>
+<body>
+
+<h1>Excel &rarr; Image Generator</h1>
+<p class="sub">Paste your STL/lotto results table straight from Excel (tab-separated). Generates a clean image you can download or share.</p>
+
+<div class="layout">
+
+  <div class="panel col-left">
+    <label>Report title</label>
+    <input type="text" id="titleInput" value="STL RESULTS SUMMARY">
+
+    <label>Subtitle (optional)</label>
+    <input type="text" id="subtitleInput" placeholder="e.g. September 16, 2026 - 2PM Draw">
+
+    <div class="row2">
+      <div>
+        <label>Draw date</label>
+        <input type="text" id="drawDate" placeholder="mm/dd/yyyy">
+      </div>
+      <div>
+        <label>Draw time</label>
+        <select id="drawTime">
+          <option value="">-- Select --</option>
+          <option value="2PM">2PM</option>
+          <option value="5PM">5PM</option>
+          <option value="9PM">9PM</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div style="display:flex;align-items:center;gap:8px;padding-top:16px;">
+        <input type="checkbox" id="hasHeaderRow" checked style="width:auto;">
+        <label style="margin:0;" for="hasHeaderRow">First pasted line is the header row</label>
+      </div>
+    </div>
+
+    <label>Paste Excel data (include your header row - e.g. No., L2, S3, 4D, LABAY, L2 HITS, S3 HITS, 4D HITS, LABAY HITS - in whatever order your sheet uses)</label>
+    <textarea id="dataInput" placeholder="Paste tab-separated rows here, e.g.:
+No.	L2	S3	4D	LABAY	L2 HITS	S3 HITS	4D HITS	LABAY HITS
+1	405	450
+2	380	455		10
+3	485	190
+..."></textarea>
+    <div class="hint">Copy the header row plus data directly from Excel (Ctrl+C) and paste here (Ctrl+V). The table below is built to match whatever column names and order you pasted. Tabs are detected automatically; blank cells are fine.</div>
+
+    <button class="btn-primary" onclick="renderTable()">Generate Table</button>
+    <button class="btn-secondary" onclick="downloadImage()">Download as PNG</button>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <div class="panel col-right">
+    <label style="margin-top:0;">Preview</label>
+    <p class="scroll-hint">&larr; Swipe sideways to see all columns &rarr;</p>
+    <div id="exportWrap">
+      <div id="exportCard">
+        <div class="card-header">
+          <p class="title" id="cardTitle">STL RESULTS SUMMARY</p>
+          <p class="subtitle" id="cardSubtitle"></p>
+        </div>
+        <table class="result-table" id="resultTable">
+          <thead>
+            <tr id="tableHead">
+              <th>No.</th><th>L2</th><th>S3</th><th>LABAY</th><th>L2 HITS</th><th>S3 HITS</th><th>LABAY HITS</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="20" style="padding:20px;color:#aaa;">Paste data (with header row) and click "Generate Table"</td></tr>
+          </tbody>
+        </table>
+        <div class="card-footer">Generated <span id="genDate"></span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function setStatus(msg, type){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status ' + (type || '');
+}
+
+const DEFAULT_HEADERS = ['No.','L2','S3','LABAY','L2 HITS','S3 HITS','LABAY HITS'];
+
+function classifyHeader(h){
+  const s = (h || '').toLowerCase().replace(/\./g,'').trim();
+  const isHits = s.includes('hit');
+  if(/^no$|^number$/.test(s)) return { cls: 'num', isId: true, sum: false };
+  if(s.replace(/hits?/,'').trim() === 'l2') return { cls: isHits ? 'hits' : 'l2', isId: false, sum: true };
+  if(s.replace(/hits?/,'').trim() === 's3') return { cls: isHits ? 'hits' : 's3', isId: false, sum: true };
+  if(s.replace(/hits?/,'').trim() === '4d') return { cls: isHits ? 'hits' : 'd4', isId: false, sum: true };
+  if(s.replace(/hits?/,'').trim() === 'labay') return { cls: isHits ? 'hits' : 'labay', isId: false, sum: true };
+  if(isHits) return { cls: 'hits', isId: false, sum: true };
+  return { cls: 'default', isId: false, sum: true };
+}
+
+function splitLine(line){
+  let cells = line.includes('\t') ? line.split('\t') : line.split(/\s{2,}/);
+  return cells.map(c => c.trim());
+}
+
+function parseData(raw){
+  const lines = raw.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if(lines.length === 0) return { headers: DEFAULT_HEADERS, rows: [] };
+
+  const hasHeader = document.getElementById('hasHeaderRow').checked;
+  let headers, dataLines;
+  if(hasHeader){
+    headers = splitLine(lines[0]);
+    dataLines = lines.slice(1);
+  } else {
+    headers = DEFAULT_HEADERS;
+    dataLines = lines;
+  }
+
+  const colCount = headers.length;
+  const rows = dataLines.map(line => {
+    let cells = splitLine(line);
+    while(cells.length < colCount) cells.push('');
+    return cells.slice(0, colCount);
+  });
+
+  return { headers, rows };
+}
+
+function normalizeNumber(v){
+  if(!v) return NaN;
+  let s = v.trim();
+  // Values like "1.530" or "2.870" use a period as a thousands separator, not a decimal point
+  if(/^\d{1,3}\.\d{3}$/.test(s)) s = s.replace('.', '');
+  s = s.replace(/,/g,'');
+  return Number(s);
+}
+
+function formatAmount(v){
+  if(!v) return '';
+  const n = normalizeNumber(v);
+  if(isNaN(n)) return v;
+  return n.toLocaleString('en-PH');
+}
+
+function renderTable(){
+  const raw = document.getElementById('dataInput').value;
+  if(!raw.trim()){
+    setStatus('Paste some data first.', 'err');
+    return;
+  }
+  const { headers, rows } = parseData(raw);
+  const meta = headers.map(classifyHeader);
+
+  document.getElementById('cardTitle').textContent = document.getElementById('titleInput').value || 'RESULTS';
+  const dDate = document.getElementById('drawDate').value.trim();
+  const dTime = document.getElementById('drawTime').value;
+  const manualSub = document.getElementById('subtitleInput').value.trim();
+  let subtitle = manualSub;
+  if(dDate || dTime){
+    subtitle = [dDate, dTime ? dTime + ' Draw' : ''].filter(Boolean).join(' - ');
+  }
+  document.getElementById('cardSubtitle').textContent = subtitle;
+
+  // Build header row to match exactly what was pasted
+  const theadRow = document.getElementById('tableHead');
+  theadRow.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  const totals = headers.map(() => 0);
+
+  rows.forEach(cells => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = cells.map((val, i) => {
+      const m = meta[i];
+      if(m.isId) return `<td class="num">${val || '-'}</td>`;
+      const n = normalizeNumber(val);
+      if(!isNaN(n)) totals[i] += n;
+      return `<td class="${val ? m.cls : 'empty'}">${val ? formatAmount(val) : '-'}</td>`;
+    }).join('');
+    tbody.appendChild(tr);
+  });
+
+  const totalTr = document.createElement('tr');
+  totalTr.className = 'total-row';
+  let labelDone = false;
+  totalTr.innerHTML = headers.map((h, i) => {
+    const m = meta[i];
+    if(m.isId && !labelDone){ labelDone = true; return `<td>TOTAL</td>`; }
+    if(!m.sum) return `<td></td>`;
+    return `<td>${formatAmount(String(totals[i]))}</td>`;
+  }).join('');
+  tbody.appendChild(totalTr);
+
+  document.getElementById('genDate').textContent = new Date().toLocaleString('en-PH');
+  const totalsSummary = headers.map((h, i) => meta[i].sum ? `${h} ${formatAmount(String(totals[i]))}` : null).filter(Boolean).join(', ');
+  setStatus(`Table generated - ${rows.length} rows. Totals: ${totalsSummary}.`, 'ok');
+}
+
+function downloadImage(){
+  const node = document.getElementById('exportCard');
+  if(document.getElementById('tableBody').children[0]?.children.length === 1){
+    setStatus('Generate the table first.', 'err');
+    return;
+  }
+  setStatus('Rendering image...', '');
+  html2canvas(node, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+    const link = document.createElement('a');
+    const titleSlug = (document.getElementById('titleInput').value || 'results').trim().replace(/\s+/g,'-').toLowerCase();
+    link.download = `${titleSlug}-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    setStatus('Image downloaded.', 'ok');
+  }).catch(err => {
+    setStatus('Failed to generate image: ' + err.message, 'err');
+  });
+}
+
+document.getElementById('genDate').textContent = new Date().toLocaleString('en-PH');
+document.getElementById('drawDate').value = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+// Auto-select the most recent draw time based on the current hour (2PM, 5PM, 9PM cutoffs).
+// Still fully editable - this just sets a sensible default in the dropdown.
+(function autoSetDrawTime(){
+  const hour = new Date().getHours();
+  let auto = '';
+  if(hour >= 21) auto = '9PM';
+  else if(hour >= 17) auto = '5PM';
+  else if(hour >= 14) auto = '2PM';
+  if(auto) document.getElementById('drawTime').value = auto;
+})();
+</script>
+
+</body>
+</html>
